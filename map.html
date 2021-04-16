@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>HERE IBM</title>
+        <!-- SCRIPTS -->
+        <meta name="viewport" charset="UTF-8" content="initial-scale=1.0, width=device-width" />
+        <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
+        <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
+        <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-ui.js"></script>
+        <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css"/>
+    </head>
+       <body>
+        <div id="mapContainer" style="width: 98vw; height: 92vh; display: block; margin: 0 auto; border: solid 2px black; margin-top: 5px;" > </div>
+        <input type="button" onclick="showDetails()" value = "Show Isoline" style="width: 200px; height: 30px; border: 2px solid black; display: block; margin: 0 auto; margin-top: 10px;">
+        </div>
+    </body>
+    <script>
+        var platform = new H.service.Platform({
+            apikey: "HERE_API_KEY"   
+        });
+
+        // Obtain the default map types from the platform object
+        var defaultLayers = platform.createDefaultLayers();
+
+        // Get your current position from wego.here.com
+		var positionOne = {lat: 52.5308, lng: 13.3847};
+
+        // Instantiate (and display) a map object:
+        var map = new H.Map(
+            document.getElementById('mapContainer'),
+            defaultLayers.vector.normal.map,
+            {
+                zoom: 8,
+                center: positionOne,
+                pixelRatio: window.devicePixelRatio || 1
+            });
+
+        window.addEventListener('resize', () => map.getViewPort().resize());
+        
+        var ui = H.ui.UI.createDefault(map, defaultLayers, 'en-US');
+
+        var mapEvents = new H.mapevents.MapEvents(map);
+        var behavior = new H.mapevents.Behavior(mapEvents);
+		
+function showDetails(){
+
+    let url = `https://isoline.router.hereapi.com/v8/isolines?`+
+            `apiKey=XX0KFpvoTZcZLBuyngWp4JPyGyLFapQBq-wLgHfOh8E`+
+            `&range[type]=time`+
+            `&range[values]=600`+ // 10 min x 60 sec
+            '&transportMode=truck'+
+            `&origin=52.5308,13.3847`;
+
+    fetch(url)
+    .then(response => response.json())
+    .then(response => {
+      console.log(response);
+      let sizeIcon = new H.map.Icon("img/warehouse.png"); 
+    let isolineGroups = new H.map.Group();
+    let centerMarker = new H.map.Marker(response.departure.place.location, {icon:sizeIcon});
+    isolineGroups.addObject(centerMarker);
+
+    response.isolines.forEach(isoline=>{
+
+        isoline.polygons.forEach(polygon=>{
+
+            let lineColor = ['#66ffff','#FFFFCC','#e6ccff'];
+            let fillColor = ['#008080','#829','#400080'];
+            let linestring = H.geo.LineString.fromFlexiblePolyline(polygon.outer);
+            let count= response.isolines.indexOf(isoline);
+
+            // Create a polyline to display the route:
+            let routePolygon = new H.map.Polygon(linestring,{
+            style: { 
+                // strokeColor: '#829',
+                // fillColor:'#FFFFCC',
+                // strokeColor: lineColor[count],
+                // fillColor:fillColor[count],
+                // lineWidth: 3 
+            }
+            });
+            isolineGroups.addObject(routePolygon);
+        });
+    });
+    
+    map.addObject(isolineGroups);
+    // Set the map's viewport to make the whole route visible:
+    map.getViewModel().setLookAtData({bounds: isolineGroups.getBoundingBox()});
+    }, error =>{
+        console.error(error);
+    });
+}
+</script>
+</html>
